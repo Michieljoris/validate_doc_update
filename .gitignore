@@ -1,0 +1,6 @@
+TAGS
+temp/*
+*.gz
+.tern-port
+
+.#*
