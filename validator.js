@@ -62,11 +62,11 @@ function defined(doc, key) { return typeof doc[key] !== 'undefined'; }
 function array(doc, key) { return isArray(doc[key]); }
 function string(doc, key) { return typeof doc[key] === 'string'; }
 function object(doc, key) {
-    var toString = Object.prototype.toString.apply(doc, key);
+    var toString = Object.prototype.toString.apply(doc[key]);
     return typeof doc[key] === 'object' &&
         toString !== '[object Array]' &&
         toString !== '[object Date]';}
-function date(doc, key) { return isDate(doc[key]); }
+// function date(doc, key) { return isDate(new Date(doc[key])); }
 function number(doc, key) { return typeof doc[key] === 'number'; } 
 function notdefined(doc, key) { return typeof doc[key] === 'undefined'; }
 function illegal(doc, key) {
@@ -117,6 +117,7 @@ function combineRuleTests(tests) {
 
 function compileRules(rules) {
     cachedRules = rules;
+    if (!isArray(rules)) rules = []; //failsafe
     var tests = rules.filter(function(r) {
         return r.indexOf('_') === 0;
     }).map(function(r) {
@@ -137,7 +138,6 @@ function compileRules(rules) {
 function parse(rule, user) {
     //user might be used in the eval..
     var dq = '"', ignoreQuote, inQuote, objStr, keysString, ch;
-    
     for (var i=0; i < rule.length; i++) {
         ch = rule[i];
         if (ch === dq && !ignoreQuote) {
@@ -147,22 +147,27 @@ function parse(rule, user) {
             if (ch === '\\') ignoreQuote = true;
             else ignoreQuote = false;
         } 
-        else if (ch === '|' && !inQuote) {
+        else if (ch === '|'  && !inQuote) {
             objStr = rule.slice(0, i);
             keysString = rule.slice(i + 1);
             break;
         }
     }
     
+    if (!objStr && !keysString && !inQuote) {
+        objStr = rule;   
+    }
+    
     var obj;
     var str = 'obj = {' + objStr + '}';
     try { eval(str); } catch(e) {
-        throw({ source: objStr, error: e.message });
+        throw({ source: rule + 'bla', error: e.message });
     }
     
+    keysString = keysString || "";
     var colonPos = keysString.indexOf(':');
-    if (colonPos === -1)
-        return { rule: rule, error: 'colon missing'};
+    if (keysString.length > 0 && colonPos === -1)
+        throw { source: rule, error: 'colon missing after ONLY or NOT'};
     var type = keysString.slice(0, colonPos).
         indexOf('NOT') === -1 ? 'only': 'not';
     keysString = keysString.slice(colonPos + 1);
@@ -185,7 +190,7 @@ function parse(rule, user) {
             }
             else key.push(ch); } 
         else if (state === 'parsingKey') {
-            if (ch === ' ') {
+            if (ch === ' ' || ch === ',') {
                 keys.push(key.join(''));
                 state = 'waitingForNextKey';
             }
@@ -210,13 +215,16 @@ function parse(rule, user) {
 }
 
 function getAllowedRules(array, currentDb) {
-    array = array || [];
+    if (!isArray(array)) array = []; //failsafe
     var rules = [];
     array.forEach(function(r) {
         var isRule =  r.indexOf( 'allow_') === 0;
         if (isRule) {
             var nextUnderScore = r.indexOf('_', 7);
             var db = r.slice(6,nextUnderScore);
+            if (nextUnderScore === -1 || db.indexOf(':') !== -1 || db.indexOf('\'') !== -1) {
+                throw({ source: r, error: 'database missing'});
+            }
             if (db === '*' || db === currentDb)
                 rules.push(r.slice(nextUnderScore + 1));
         }
@@ -227,15 +235,16 @@ function getAllowedRules(array, currentDb) {
 
 function getUserTest(r) {
     var test = {};
+    var key;
     test.only = function(newDoc, oldDoc) {
-        var key;
-        for (key in r.fixedValues) oldDoc[key] = r.fixedValues[key];
+        var fixedKey;
+        for (fixedKey in r.fixedValues)
+            oldDoc[fixedKey] = r.fixedValues[fixedKey];
         for (var i = 0; i < r.keys.length; i++) {
-            var what = r.keys[i];
-            console.log(i, r.keys[i], newDoc, newDoc.salt, what, newDoc[what]);
-            oldDoc[r.keys[i]] = newDoc[r.keys[i]];
+            key = r.keys[i];
+            oldDoc[key] = newDoc[key];
         }
-        console.log(oldDoc, newDoc);
+        // console.log(oldDoc, newDoc);
         return equals(newDoc, oldDoc);
     };
     
@@ -244,7 +253,8 @@ function getUserTest(r) {
         for (key in r.fixedValues) {
             if (!equals(newDoc[key], r.fixedValues[key])) return false;
         }
-        for (key in r.keys) {
+        for (var i=0; i < r.keys.length; i++) {
+            key = r.keys[i];
             if (!equals(newDoc[key], oldDoc[key])) return false;
         } 
         return true;
@@ -254,6 +264,8 @@ function getUserTest(r) {
 }
 
 function compileUserCtx(userCtx) {
+    // console.log('compiling userCtx');
+    userCtx = userCtx || {};
     var user = userCtx.name;
     var allowedRules = getAllowedRules(userCtx.roles, userCtx.db);
     
@@ -262,7 +274,7 @@ function compileUserCtx(userCtx) {
         parsed.test = getUserTest(parsed);
         return parsed;
     });
-    console.log('allowedRules', allowedRules);
+    // console.log('allowedRules', allowedRules);
     
     cachedUserCtx =userCtx;
     validateUser = function(newDoc, oldDoc) {
@@ -278,12 +290,12 @@ function compileUserCtx(userCtx) {
 function init(dbRules, userCtx) {
     
     return {
-        // validateDoc: equals(dbRules, cachedRules)  ? validateDoc : compileRules(dbRules),
-        validateUser: equals(userCtx, cachedUserCtx)  ? validateDoc : compileUserCtx(userCtx)
+        validateDoc: cachedRules && equals(dbRules, cachedRules)  ? validateDoc : compileRules(dbRules),
+        validateUser: userCtx && equals(userCtx, cachedUserCtx)  ? validateUser : compileUserCtx(userCtx)
     };
 }
 
-// exports.init = init;
+exports.init = init;
 
 
 // var a = "type:'loc|ation', id:user | NOT: salt, key" 
@@ -307,7 +319,7 @@ var userCtx = {
     ]
 };
 
-var validator = init(null, userCtx);
-var result = validator.validateUser({ type:'location', id:"user" , salt:1}, { type:'location', id:"user" });
-console.log('validateUser?', result);
+// var validator = init(null, userCtx);
+// var result = validator.validateUser({ type:'location', id:"user" , salt:1}, { type:'location', id:"user" });
+// console.log('validateUser?', result);
 
