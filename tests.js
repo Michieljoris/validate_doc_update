@@ -98,17 +98,17 @@ var tests = [
         FAIL( { location:'noway' }, { }, null, dbRules);
         FAIL( { location:'noway', type:'noway' }, { }, null, dbRules);
         
-        PASS(0, { astring:'some string' }, { }, null, dbRules);
-        FAIL(0, { astring: 123 }, { }, null, dbRules);
+        PASS( { astring:'some string' }, { }, null, dbRules);
+        FAIL( { astring: 123 }, { }, null, dbRules);
         
-        FAIL(0, { obj:'some string' }, { }, null, dbRules);
-        PASS(0, { obj: { a: 1}}, { }, null, dbRules);
+        FAIL( { obj:'some string' }, { }, null, dbRules);
+        PASS( { obj: { a: 1}}, { }, null, dbRules);
         
-        FAIL(0, { number:'some string' }, { }, null, dbRules);
-        PASS(0, { number: 123 }, { }, null, dbRules);
+        FAIL( { number:'some string' }, { }, null, dbRules);
+        PASS( { number: 123 }, { }, null, dbRules);
         
-        PASS(0, { array:[1,2,3] }, { }, null, dbRules);
-        FAIL(0, { array: 123 }, { }, null, dbRules);
+        PASS( { array:[1,2,3] }, { }, null, dbRules);
+        FAIL( { array: 123 }, { }, null, dbRules);
     },
     //don't know if they're useful, but added nonetheless
     //test for existence and being defined of a key:
@@ -117,9 +117,9 @@ var tests = [
             "_defined: defined"
         ];
         
-        FAIL(0, { defined:undefined }, { }, null, dbRules);
-        FAIL(0, { }, { }, null, dbRules);
-        PASS(0, { defined: 123}, { }, null, dbRules);
+        FAIL( { defined:undefined }, { }, null, dbRules);
+        FAIL( { }, { }, null, dbRules);
+        PASS( { defined: 123}, { }, null, dbRules);
     },
     
     function() {
@@ -127,9 +127,9 @@ var tests = [
             "_illegal: illegal"
         ];
         
-        FAIL(0, { illegal: 123}, { }, null, dbRules);
-        FAIL(0, { illegal: undefined}, { }, null, dbRules);
-        PASS(0, { }, { }, null, dbRules);
+        FAIL( { illegal: 123}, { }, null, dbRules);
+        FAIL( { illegal: undefined}, { }, null, dbRules);
+        PASS( { }, { }, null, dbRules);
     },
     
     function() {
@@ -137,9 +137,9 @@ var tests = [
             "_notdefined: notdefined"
         ];
         
-        PASS(0, { notdefined:undefined}, { }, null, dbRules);
-        PASS(0, { }, { }, null, dbRules);
-        FAIL(0, { notdefined: 123 }, { }, null, dbRules);
+        PASS( { notdefined:undefined}, { }, null, dbRules);
+        PASS( { }, { }, null, dbRules);
+        FAIL( { notdefined: 123 }, { }, null, dbRules);
     },
     
     //test user allow rules
@@ -160,10 +160,21 @@ var tests = [
             name: 'user',
             db:'mydb',
             roles: [
+                "allow_mydb_type:'location'"
+            ]
+        };
+        PASS( { type:'location' , fieldb: 1}, { }, userCtx, null);
+    }, 
+    function() {
+        //only fixed values
+        var userCtx = {
+            name: 'user',
+            db:'mydb',
+            roles: [
                 "allow_*_type:'location', id:user"
             ]
         };
-        PASS( { type:'location', id:"user" }, { }, userCtx, null);
+        PASS( { type:'location', id:"user", fieldb: 123 }, { }, userCtx, null);
     }, 
     function() {
         //if there are no allow rules for the user, writing is not allowed by default
@@ -220,7 +231,11 @@ var tests = [
         PASS( { type:'location', id:"user" , salt:1, key:'bla'}, { }, userCtx, null);
         
         FAIL( { type:'location' }, { }, userCtx, null);
-        FAIL( { type:'somelocation', id:"user", salt:1, key:2, somekey:1 }, { }, userCtx, null);
+        FAIL( { type:'somelocation', id:"user", salt:1, key:2, somekey:1 }, { somekey:1 }, userCtx, null);
+        PASS( { type:'location', id:"user", salt:1, key:2, somekey:1 }, { somekey:1 }, userCtx, null);
+        FAIL( { type:'location', id:"user", salt:1, key:2, somekey:1 }, { somekey:2 }, userCtx, null);
+        PASS( { type:'location', id:"user", salt:1, key:2}, { }, userCtx, null);
+        FAIL( { type:'location', id:"user", salt:1, key:2, somekey:1}, { }, userCtx, null);
     },
     function() {
         //disallow certain keys

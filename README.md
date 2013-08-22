@@ -15,7 +15,7 @@ Per my design a database will be locked down by default , write permissions are
 then given, not taken away.
 
 The validator parses the secObj of the database it is in, and the
-userCtx of the user trying to write a document to base its ya or nay
+userCtx of the user trying to write a document to base its yea or nay
 decision on.
 
 First of all a document has to be validated to be appropiate for the
@@ -88,7 +88,7 @@ not be a rare event, and if there are performance problems it is
 possible to cache a number of users, or possibly all of them (not
 implemented yet).
 
-See tests.js for exammples on how to use the validator.
+See tests.js for examples on how to use the validator.
 
 	node tests.js
 	

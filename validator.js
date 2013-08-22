@@ -1,27 +1,16 @@
-/*global console:false exports:false */
-/*jshint globalstrict:true*/
-
-"use strict";
-
 var validateDoc;
 var cachedRules;
 var validateUser;
 var cachedUserCtx;
 
-
 function isArray(value) {
     return Object.prototype.toString.apply(value) === '[object Array]';
 }
 
-function isDate(value){
-    return Object.prototype.toString.apply(value) === '[object Date]';
-}
-
-//adapted from angular.equals
 function equals(o1, o2) {
     if (o1 === o2) return true;
     if (o1 === null || o2 === null) return false;
-    if (o1 !== o1 && o2 !== o2) return true; // NaN === NaN
+    if (o1 !== o1 && o2 !== o2) return true; 
     var t1 = typeof o1, t2 = typeof o2, length, key, keySet;
         if (t1 === t2) {
             if (t1 === 'function') {
@@ -37,16 +26,16 @@ function equals(o1, o2) {
                         return true;
                         
                     }
-                } else if (isDate(o1)) {
-                    return isDate(o2) && o1.getTime() === o2.getTime();
                 } else {
                     if (isArray(o2)) return false;
                     keySet = {};
                     for(key in o1) {
+                        if (key[0] === '_') continue;
                         if (!equals(o1[key], o2[key])) return false;
                         keySet[key] = true;
                     }
                     for(key in o2) {
+                        if (key[0] === '_') continue;
                         if (!keySet.hasOwnProperty(key) &&
                             o2[key] !== undefined ) return false;
                     }
@@ -57,7 +46,6 @@ function equals(o1, o2) {
     return false;
 }
 
-//these functions can be used in the db rules
 function defined(doc, key) { return typeof doc[key] !== 'undefined'; }
 function array(doc, key) { return isArray(doc[key]); }
 function string(doc, key) { return typeof doc[key] === 'string'; }
@@ -66,17 +54,13 @@ function object(doc, key) {
     return typeof doc[key] === 'object' &&
         toString !== '[object Array]' &&
         toString !== '[object Date]';}
-// function date(doc, key) { return isDate(new Date(doc[key])); }
 function number(doc, key) { return typeof doc[key] === 'number'; } 
 function notdefined(doc, key) { return typeof doc[key] === 'undefined'; }
 function illegal(doc, key) {
-    for (var k in doc) {
-        if (k === key) return false;
-    }
+    if (doc.hasOwnProperty(key)) return false;
     return true;
 }
 
-//eval the rule and insert functions for fixed values
 function parseDbRule(rule) {
     rule = 'rule = {' + rule + '}';
     try { eval(rule); } catch(e) {
@@ -87,7 +71,7 @@ function parseDbRule(rule) {
         return function(doc) {
             return doc[key] === fixedValue;
         };
-    };
+    }
     
     var bind = function(f, key) {
         return function(doc) {
@@ -96,6 +80,7 @@ function parseDbRule(rule) {
     };
     
     for (var k in rule) {
+        if (!rule.hasOwnProperty(k)) continue;
         if (typeof rule[k] !== 'function') 
             rule[k] = makeTestFixedValueFunction(k, rule[k]);
         else
@@ -109,6 +94,7 @@ function parseDbRule(rule) {
 function combineRuleTests(tests) {
     var ruleAsOneTest = function(doc) {
         for (var key in tests) {
+            if (!tests.hasOwnProperty(key)) return;
             if (!tests[key](doc)) return false; }
         return true;
     };
@@ -117,7 +103,7 @@ function combineRuleTests(tests) {
 
 function compileRules(rules) {
     cachedRules = rules;
-    if (!isArray(rules)) rules = []; //failsafe
+    if (!isArray(rules)) rules = []; 
     var tests = rules.filter(function(r) {
         return r.indexOf('_') === 0;
     }).map(function(r) {
@@ -133,10 +119,8 @@ function compileRules(rules) {
     return validateDoc;
 }
 
-//////--------------------------------------
 
 function parse(rule, user) {
-    //user might be used in the eval..
     var dq = '"', ignoreQuote, inQuote, objStr, keysString, ch;
     for (var i=0; i < rule.length; i++) {
         ch = rule[i];
@@ -161,15 +145,14 @@ function parse(rule, user) {
     var obj;
     var str = 'obj = {' + objStr + '}';
     try { eval(str); } catch(e) {
-        throw({ source: rule + 'bla', error: e.message });
+        throw({ source: rule , error: e.message });
     }
-    
     keysString = keysString || "";
     var colonPos = keysString.indexOf(':');
     if (keysString.length > 0 && colonPos === -1)
         throw { source: rule, error: 'colon missing after ONLY or NOT'};
     var type = keysString.slice(0, colonPos).
-        indexOf('NOT') === -1 ? 'only': 'not';
+        indexOf('ONLY') === -1 ? 'not': 'only';
     keysString = keysString.slice(colonPos + 1);
     
     var keys = [];
@@ -215,7 +198,7 @@ function parse(rule, user) {
 }
 
 function getAllowedRules(array, currentDb) {
-    if (!isArray(array)) array = []; //failsafe
+    if (!isArray(array)) array = []; 
     var rules = [];
     array.forEach(function(r) {
         var isRule =  r.indexOf( 'allow_') === 0;
@@ -238,25 +221,28 @@ function getUserTest(r) {
     var key;
     test.only = function(newDoc, oldDoc) {
         var fixedKey;
-        for (fixedKey in r.fixedValues)
+        for (fixedKey in r.fixedValues) {
+            if (!r.fixedValues.hasOwnProperty(fixedKey)) continue;
             oldDoc[fixedKey] = r.fixedValues[fixedKey];
+        }
         for (var i = 0; i < r.keys.length; i++) {
             key = r.keys[i];
             oldDoc[key] = newDoc[key];
         }
-        // console.log(oldDoc, newDoc);
         return equals(newDoc, oldDoc);
     };
     
     test.not = function(newDoc, oldDoc) {
         var key;
         for (key in r.fixedValues) {
+            if (!r.fixedValues.hasOwnProperty(key)) continue;
             if (!equals(newDoc[key], r.fixedValues[key])) return false;
         }
         for (var i=0; i < r.keys.length; i++) {
             key = r.keys[i];
             if (!equals(newDoc[key], oldDoc[key])) return false;
         } 
+        
         return true;
     };
     
@@ -264,7 +250,6 @@ function getUserTest(r) {
 }
 
 function compileUserCtx(userCtx) {
-    // console.log('compiling userCtx');
     userCtx = userCtx || {};
     var user = userCtx.name;
     var allowedRules = getAllowedRules(userCtx.roles, userCtx.db);
@@ -274,10 +259,11 @@ function compileUserCtx(userCtx) {
         parsed.test = getUserTest(parsed);
         return parsed;
     });
-    // console.log('allowedRules', allowedRules);
     
     cachedUserCtx =userCtx;
     validateUser = function(newDoc, oldDoc) {
+        
+        if (!oldDoc) oldDoc = {};
         for (var i = 0; i < allowedRules.length; i++) {
             if (allowedRules[i].test(newDoc, oldDoc)) return true;
         }
@@ -286,40 +272,11 @@ function compileUserCtx(userCtx) {
     return validateUser;
 }
 
-
 function init(dbRules, userCtx) {
-    
     return {
         validateDoc: cachedRules && equals(dbRules, cachedRules)  ? validateDoc : compileRules(dbRules),
         validateUser: userCtx && equals(userCtx, cachedUserCtx)  ? validateUser : compileUserCtx(userCtx)
     };
 }
 
-exports.init = init;
-
-
-// var a = "type:'loc|ation', id:user | NOT: salt, key" 
-
-
-// var tst = {
-//     f1: "str", f2: 123, f2a: [1,2,3] //literals
-//     ,f3: defined, //typeof f3 !== 'undefined'
-//     f4:array, f5:string, f6:date, f7:object, f8:number, //type
-//     f9:illegal, //not even the key can exist
-//     f10:notdefined //key can exist, but cannot have a value
-// };
-
-
-var userCtx = {
-    name: 'user',
-    db:'mydb',
-    roles: [
-        "allow_*_type:'location', id:user | ONLY: salt, key"
-        
-    ]
-};
-
-// var validator = init(null, userCtx);
-// var result = validator.validateUser({ type:'location', id:"user" , salt:1}, { type:'location', id:"user" });
-// console.log('validateUser?', result);
-
+exports['init'] = init;

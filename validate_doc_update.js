@@ -1,9 +1,8 @@
-/*global require:false log:false*/
-
 function (newDoc, oldDoc, userCtx, secObj){
-    "use strict";  
-    
     if (!secObj) return;
+
+    log('in vdu, oldDoc is:' + JSON.stringify(oldDoc, null, '\t'));
+    log('in vdu, newDoc is:' + JSON.stringify(newDoc, null, '\t'));
     
     secObj.members = secObj.members || {};
     secObj.members.roles = secObj.members.roles || [];
@@ -17,15 +16,18 @@ function (newDoc, oldDoc, userCtx, secObj){
         throw(errorObj);
     }
     
-    var validator;
+    var validator = require('validator');
+    
     try {
-        validator = require('validator').init(secObj.members.names, userCtx);
+        validator = validator.init(secObj.members.names, userCtx);
     }  catch(e) {
-        reportError('forbidden', 'Error initializing validator: \n' + e.source + '\n ' + e.error);
+        log('error initing validator', e);
+        if (e.message) reportError('forbidden', 'Error initializing validator: \n' + e.message);
+        else reportError('forbidden', 'Error initializing validator: \n' + e.source + '\n ' + e.error);
     }
         
     function is_admin(){
-        return userCtx.indexOf('_admin') !== -1;
+        return userCtx.roles.indexOf('_admin') !== -1;
     }
     
     function validateDoc(doc) {
@@ -33,14 +35,16 @@ function (newDoc, oldDoc, userCtx, secObj){
     }
     
     if (is_admin()) {
+        if (newDoc._deleted) return;
         if (!validateDoc(newDoc)) 
-            reportError('forbidden', 'The document is not validated (even admins can\'t get around this..).');
+            reportError('forbidden', 'The document is not validated (even admins can\'t get around this :-).');
         return;
     } 
     
     function hasWritePermission() {
         var roles = secObj.members.roles;
-        for (var i; i < roles.length; i++) {
+        
+        for (var i = 0; i < roles.length; i++) {
             if (roles[i].indexOf('write') === 0) {
                 if (userCtx.roles.indexOf(roles[i]) !== -1) return true;
             }
@@ -50,11 +54,17 @@ function (newDoc, oldDoc, userCtx, secObj){
     
     if (!hasWritePermission())
         reportError('unauthorized', 'User ' + userCtx.name  +
-                    'is not allowed to write to this database.');
+                    ' is not allowed to write to this database.');
     
-    if  (!validator.validateUser(newDoc, oldDoc) )
-        reportError('unauthorized', 'User ' + userCtx.name + ' is not allowed to write this particular document to the database.');
-    
-    if (!validator.validateDoc(newDoc))
-        reportError('forbidden', 'The document is not conforming to the validation rules.');
+    if (newDoc._deleted) {
+        if  (!validator.validateUser(oldDoc, {}) )
+            reportError('unauthorized', 'User ' + userCtx.name + ' is not allowed to delete this particular document to the database.');
+    }
+    else {
+        if  (!validator.validateUser(newDoc, oldDoc) )
+            reportError('unauthorized', 'User ' + userCtx.name + ' is not allowed to write this particular document to the database.');
+        if (!validator.validateDoc(newDoc))
+            reportError('forbidden', 'The document is not conforming to the validation rules.');
+    }
 }
+
