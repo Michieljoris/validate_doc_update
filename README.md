@@ -11,11 +11,12 @@ It consists of 2 parts, the validate_doc_update.js function itself and
 the commonjs module validator.js Store both functions under their own
 name in a design document in your database.
 
-By default a database is locked down, write permissions are
-given, not taken away.
+Per my design a database will be locked down by default , write permissions are
+then given, not taken away.
 
 The validator parses the secObj of the database it is in, and the
-userCtx of the user trying to write a document. 
+userCtx of the user trying to write a document to base its ya or nay
+decision on.
 
 First of all a document has to be validated to be appropiate for the
 database:
@@ -41,18 +42,18 @@ This translates as:
 Fields can be validated as any type of literal, so numbers, strings,
 objects, or arrays.
 
-You can also validate of the type of the field itself (object, string,
+You can also validate the type of the field itself (object, string,
 number), or require a field to be defined, undefined, or illegal.
 
 The 'names' have to start with an underscorea to distinguish them from
 real names you might want to add to the secObj.members.names. Couchdb
 names cannot start with an underscore, so there will be no conflict.
 
-A user needs write permission. This can be done by assigning "write*"
+A user needs write permission. This can be done by adding "write*"
 roles to the database's secObj.members.roles array. The star in  "write*"
 can be anything you want. Use "write" for generic permission, and
-"write-databaseName" to the specific database for instance. Any user with any of these roles assigned to
-them will have read permission for the database, and preliminary write
+"write-databaseName" to allow writing to a specific database for instance. Any user with any of these roles assigned to
+them will then have read permission for the database, and preliminary write
 permission.
 
 To allow a user to write actual documents to the database, we need to
@@ -66,19 +67,20 @@ A user's userCtx.roles might look like this:
 
     [ 
 	  "allow_*_ type:'article', writer:user | ONLY text date ",
-	  ,"allow_mydb_ type:'userdata, writer:'address' | NOT password ",
+	  ,"allow_mydb_ type:'userdata  | NOT password "
+	  ,"allow_*_ type:'notes'"
 	]
 
 This translates as:
 
     Allow this user to write to the database only when EITHER the
-    doc.type equals 'article', doc.writer equals the user's couchdb id
+    doc.type equals 'article' and doc.writer equals the user's couchdb id
     and the only other modified fields are doc.text and doc.date OR
-    this database is 'mydb' and doc.type equals 'userdata' and
-    doc.writer equals 'address, and the doc.password is NOT modified
+    this database's name is 'mydb' and doc.type equals 'userdata' and
+    doc.password is NOT modified OR  doc.type equals 'notes'
 
 User and database rules get parsed the first time and then 'compiled'
-to a validation functions. These function get cached and do not have
+to validation functions. These functions get cached and do not have
 to be recompiled for the next write unless a different user tries to
 write to the database, or the database rules in secObj.members.names
 get changed. The latter situation will be rare. The first one might
@@ -87,8 +89,6 @@ possible to cache a number of users, or possibly all of them (not
 implemented yet).
 
 See tests.js for exammples on how to use the validator.
-
-Run 
 
 	node tests.js
 	
