@@ -37,7 +37,7 @@ function (newDoc, oldDoc, userCtx, secObj){
     if (is_admin()) {
         if (newDoc._deleted) return;
         if (!validateDoc(newDoc)) 
-            reportError('forbidden', 'The document is not validated (even admins can\'t get around this :-).');
+            reportError('forbidden', 'Dear admin: This document does not pass the the validation rules for this database and and has not been saved');
         return;
     } 
     
@@ -52,19 +52,20 @@ function (newDoc, oldDoc, userCtx, secObj){
         return false;
     }
     
+    var name = userCtx.name || 'unknown';
     if (!hasWritePermission())
         reportError('unauthorized', 'User ' + userCtx.name  +
                     ' is not allowed to write to this database.');
     
     if (newDoc._deleted) {
         if  (!validator.validateUser(oldDoc, {}) )
-            reportError('unauthorized', 'User ' + userCtx.name + ' is not allowed to delete this particular document to the database.');
+            reportError('unauthorized', 'User ' + name + ' is not allowed to delete this particular document from the database.');
     }
     else {
         if  (!validator.validateUser(newDoc, oldDoc) )
-            reportError('unauthorized', 'User ' + userCtx.name + ' is not allowed to write this particular document to the database.');
+            reportError('unauthorized', 'User ' + name + ' is not allowed to write this particular document to the database.');
         if (!validator.validateDoc(newDoc))
-            reportError('forbidden', 'The document is not conforming to the validation rules.');
+            reportError('forbidden', 'This document does not pass the the validation rules for this database and and has not been saved.');
     }
 }
 
