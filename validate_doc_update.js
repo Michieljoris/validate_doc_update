@@ -1,8 +1,8 @@
 function (newDoc, oldDoc, userCtx, secObj){
     if (!secObj) return;
 
-    log('in vdu, oldDoc is:' + JSON.stringify(oldDoc, null, '\t'));
-    log('in vdu, newDoc is:' + JSON.stringify(newDoc, null, '\t'));
+    // log('in vdu, oldDoc is:' + JSON.stringify(oldDoc, null, '\t'));
+    // log('in vdu, newDoc is:' + JSON.stringify(newDoc, null, '\t'));
     
     secObj.members = secObj.members || {};
     secObj.members.roles = secObj.members.roles || [];
@@ -16,7 +16,7 @@ function (newDoc, oldDoc, userCtx, secObj){
         throw(errorObj);
     }
     
-    var validator = require('validator');
+    var validator = require('lib/validator');
     
     try {
         validator = validator.init(secObj.members.names, userCtx);

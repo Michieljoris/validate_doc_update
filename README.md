@@ -1,4 +1,4 @@
-doc_validate_update
+validate_doc_update
 --------------
 An automated document validator for couchdb. 
 
@@ -8,8 +8,15 @@ modifying the doc_validate_update in the database's design
 document(s);
 
 It consists of 2 parts, the validate_doc_update.js function itself and
-the commonjs module validator.js Store both functions under their own
-name in a design document in your database.
+the commonjs module validator.js. Store the first under its own name,
+and the second one under lib. So your design document should look like
+this:
+
+	{ validate_doc_update: [contents of validate_doc_update.js],
+	  lib: {
+	           validator: [contents of validator.js]
+		   }
+	  }
 
 Per my design a database will be locked down by default , write permissions are
 then given, not taken away.
