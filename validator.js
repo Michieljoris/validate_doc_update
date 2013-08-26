@@ -63,6 +63,7 @@ function illegal(doc, key) {
 
 function parseDbRule(rule) {
     rule = 'rule = {' + rule + '}';
+    rule = rule.replace(/;/g, ',');
     try { eval(rule); } catch(e) {
         throw({ source: rule, error: e.message });
     }
@@ -144,6 +145,7 @@ function parse(rule, user) {
     
     var obj;
     var str = 'obj = {' + objStr + '}';
+    str = str.replace(/;/g, ',');
     try { eval(str); } catch(e) {
         throw({ source: rule , error: e.message });
     }
@@ -173,7 +175,7 @@ function parse(rule, user) {
             }
             else key.push(ch); } 
         else if (state === 'parsingKey') {
-            if (ch === ' ' || ch === ',') {
+            if (ch === ' ' || ch === ',' || ch === ';') {
                 keys.push(key.join(''));
                 state = 'waitingForNextKey';
             }

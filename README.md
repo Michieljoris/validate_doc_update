@@ -32,7 +32,7 @@ You can store under members/names strings describing what kind of docs are allow
 database. For instance:
 
 
-	[ "_type:'comment', text:string, article:defined",
+	[ "_type:'comment'; text:string, article:defined",
 	  "_type:'article', writer:'Peter', count: number", article:illegal
 	]
 	
@@ -45,6 +45,8 @@ This translates as:
 	the type of the article field has to be 'article', and the writer
     field 'Peter', and the count field has to be of type number, and
     it can not have a field named article
+
+By the way, the separator of fields can be a semicolon;
 
 Fields can be validated as any type of literal, so numbers, strings,
 objects, or arrays.

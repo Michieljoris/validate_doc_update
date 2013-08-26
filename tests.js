@@ -80,7 +80,7 @@ var tests = [
     function() {
         //validate docs based on fixed value keys and type of value of a key
         var dbRules =  [
-            "_type:'location', location:'bla2'",
+            "_type:'location'; location:'bla2'",
             "_astring:string",
             "_obj:object",
             "_array: array",
@@ -218,11 +218,12 @@ var tests = [
         UNDEFINED( { type:'location', id:"user" }, { }, userCtx, null);
     },
     function() {
+        //separator of fields can be ;
         var userCtx = {
             name: 'user',
             db:'mydb',
             roles: [
-                "allow_*_type:'location', id:user|  ONLY: salt, key"
+                "allow_*_type:'location'; id:user|  ONLY: salt; key"
             ]
         };
         
