@@ -6,8 +6,8 @@
 var validator = require('./validator.js');
 
 var parsingError;
-function test(newDoc, oldDoc, userCtx, dbRules){
-    
+function test(newDoc, oldDoc, userCtx, dbRules, expect){
+    //returns false, true or undefined
     var module;
     try {
         module = validator.init(dbRules, userCtx);
@@ -25,15 +25,15 @@ function test(newDoc, oldDoc, userCtx, dbRules){
 var count = 0, failed = 0;
 function assert(newDoc, oldDoc, userCtx, dbRules, expect) {
     count++;
+    parsingError = false;
     var result = test(newDoc, oldDoc, userCtx, dbRules);
     if ( result !== expect) {
         failed++;
         if (parsingError) {
             console.log(parsingError);   
-            parsingError = false;
         }
-        else console.log('EXPECTING ' + (expect ? 'PASS' : 'FAIL') + '\n',
-                    { newDoc: newDoc, oldDoc: oldDoc, userCtx: userCtx, dbRules: dbRules});
+        else console.log(count + ": expecting " + expect + " result: " + result + '\n',
+                         { newDoc: newDoc, oldDoc: oldDoc, userCtx: userCtx, dbRules: dbRules});
     }
 }
 
@@ -76,6 +76,12 @@ var tests = [
         //if there are no dbrules, writing is not allowed by default
         var dbRules =  [];
         FAIL( { type:'location', id:"user" }, { }, null, dbRules);
+    }, 
+    
+    function() {
+        //if there's an empty dbrule ('_') then allow anything
+        var dbRules =  ['_'];
+        PASS( { type:'location', id:"user", crazy: 'crazy' }, { }, null, dbRules);
     }, 
     function() {
         //validate docs based on fixed value keys and type of value of a key
@@ -142,7 +148,7 @@ var tests = [
         FAIL( { notdefined: 123 }, { }, null, dbRules);
     },
     
-    //test user allow rules
+    //test user allow rules**********************************************
     function() {
         //only fixed values
         var userCtx = {
@@ -188,6 +194,8 @@ var tests = [
     }, 
     function() {
         //syntax errors:
+        
+        //no database in the place of the star or a star: allow_*_
         var userCtx = {
             name: 'user',
             db:'mydb',
@@ -195,8 +203,9 @@ var tests = [
                 "allow__type:'location', id:user|  ONLY: salt, key"
             ]
         };
-        
         UNDEFINED( { type:'location', id:"user" }, { }, userCtx, null);
+        
+        //colon missing after type
         userCtx = {
             name: 'user',
             db:'mydb',
@@ -204,18 +213,18 @@ var tests = [
                 "allow_*_type'location', id:user|  ONLY: salt, key"
             ]
         };
-        
         UNDEFINED( { type:'location', id:"user" }, { }, userCtx, null);
         
+        //no colon ater ONLY
         userCtx = {
             name: 'user',
             db:'mydb',
             roles: [
-                "allow_*_type:'location', id:user|  ONLY salt, key"
+                "allow_*_type:'location1', id:user|  ONLY salt, key"
             ]
         };
         
-        UNDEFINED( { type:'location', id:"user" }, { }, userCtx, null);
+        UNDEFINED( { type:'location1', id:"user" }, { }, userCtx, null);
     },
     function() {
         //separator of fields can be ;
@@ -223,13 +232,13 @@ var tests = [
             name: 'user',
             db:'mydb',
             roles: [
-                "allow_*_type:'location'; id:user|  ONLY: salt; key"
+                "allow_*_type:'location'; id:user|  ONLY: salt key"
             ]
         };
         
-        PASS( { type:'location', id:"user" }, { }, userCtx, null);
         PASS( { type:'location', id:"user" , salt:1}, { }, userCtx, null);
         PASS( { type:'location', id:"user" , salt:1, key:'bla'}, { }, userCtx, null);
+        PASS( { type:'location', id:"user" }, { }, userCtx, null);
         
         FAIL( { type:'location' }, { }, userCtx, null);
         FAIL( { type:'somelocation', id:"user", salt:1, key:2, somekey:1 }, { somekey:1 }, userCtx, null);
@@ -292,7 +301,6 @@ var tests = [
         
     },
     function() {
-        //
         var userCtx = {
             name: 'user',
             db:'mydb',
