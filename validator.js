@@ -2,6 +2,7 @@ var validateDoc;
 var cachedRules;
 var validateUser;
 var cachedUserCtx;
+var cachedRoles;
 
 function isArray(value) {
     return Object.prototype.toString.apply(value) === '[object Array]';
@@ -103,6 +104,7 @@ function combineRuleTests(tests) {
 }
 
 function compileRules(rules) {
+    
     cachedRules = rules;
     if (!isArray(rules)) rules = []; 
     var tests = rules.filter(function(r) {
@@ -199,7 +201,7 @@ function parse(rule, user) {
     return { rule: rule, fixedValues: obj, type: type, keys: keys };
 }
 
-function getAllowedRules(array, currentDb) {
+function getAllowedRules(array, currentDb, dbRoles) {
     if (!isArray(array)) array = []; 
     var rules = [];
     array.forEach(function(r) {
@@ -210,7 +212,7 @@ function getAllowedRules(array, currentDb) {
             if (nextUnderScore === -1 || db.indexOf(':') !== -1 || db.indexOf('\'') !== -1) {
                 throw({ source: r, error: 'database missing'});
             }
-            if (db === '*' || db === currentDb)
+            if (db === '*' || db === currentDb || dbRoles.indexOf(db) !== -1 )
                 rules.push(r.slice(nextUnderScore + 1));
         }
     });
@@ -251,10 +253,11 @@ function getUserTest(r) {
     return test[r.type];
 }
 
-function compileUserCtx(userCtx) {
+function compileUserCtx(userCtx, dbRoles) {
     userCtx = userCtx || {};
+    dbRoles = dbRoles || [];
     var user = userCtx.name;
-    var allowedRules = getAllowedRules(userCtx.roles, userCtx.db);
+    var allowedRules = getAllowedRules(userCtx.roles, userCtx.db, dbRoles);
     
     allowedRules = allowedRules.map(function(r) {
         var parsed = parse(r, user);
@@ -263,6 +266,7 @@ function compileUserCtx(userCtx) {
     });
     
     cachedUserCtx =userCtx;
+    cachedRoles = dbRoles;
     validateUser = function(newDoc, oldDoc) {
         
         if (!oldDoc) oldDoc = {};
@@ -274,11 +278,26 @@ function compileUserCtx(userCtx) {
     return validateUser;
 }
 
-function init(dbRules, userCtx) {
+function init(dbSecObjMembers, userCtx) {
+    var dbRules = dbSecObjMembers.names, dbRoles = dbSecObjMembers.roles;
+    var rulesAreCached = equals(dbRules, cachedRules),
+        userCtxIsCached = equals(userCtx, cachedUserCtx),
+        dbRolesAreCached = equals(dbRoles, cachedRoles);
+    
     return {
-        validateDoc: cachedRules && equals(dbRules, cachedRules)  ? validateDoc : compileRules(dbRules),
-        validateUser: userCtx && equals(userCtx, cachedUserCtx)  ? validateUser : compileUserCtx(userCtx)
+        cached: (rulesAreCached ? 'dbRules,' : '') +
+            (userCtxIsCached ? 'userCtx,' : '') +
+            (dbRolesAreCached ? 'dbRoles' : ''),
+        validateDoc: cachedRules && rulesAreCached  ? validateDoc : compileRules(dbRules),
+        validateUser: userCtx && userCtxIsCached && dbRolesAreCached ?
+            validateUser : compileUserCtx(userCtx, dbRoles)
     };
 }
 
 exports['init'] = init;
+
+
+
+
+
+

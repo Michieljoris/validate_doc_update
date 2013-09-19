@@ -54,15 +54,16 @@ objects, or arrays.
 You can also validate the type of the field itself (object, string,
 number), or require a field to be defined, undefined, or illegal.
 
-The 'names' have to start with an underscorea to distinguish them from
+The 'names' have to start with an underscore to distinguish them from
 real names you might want to add to the secObj.members.names. Couchdb
 names cannot start with an underscore, so there will be no conflict.
 
 A user needs write permission. This can be done by adding "write*"
-roles to the database's secObj.members.roles array. The star in  "write*"
-can be anything you want. Use "write" for generic permission, and
-"write-databaseName" to allow writing to a specific database for instance. Any user with any of these roles assigned to
-them will then have read permission for the database, and preliminary write
+roles to the database's secObj.members.roles array. The star in
+"write*" can be anything you want. Use "write" for generic permission,
+and "write-databaseName" to allow writing to a specific database for
+instance. Any user with any of these roles assigned to them will then
+have read permission for the database, and preliminary write
 permission.
 
 To allow a user to write actual documents to the database, we need to
@@ -74,10 +75,10 @@ write.
 
 A user's userCtx.roles might look like this: 
 
-    [ 
+    [ "write",
 	  "allow_*_ type:'article', writer:user | ONLY text date ",
 	  ,"allow_mydb_ type:'userdata  | NOT password "
-	  ,"allow_*_ type:'notes'"
+	  ,"allow_someRole_ type:'notes'"
 	]
 
 This translates as:
@@ -86,19 +87,33 @@ This translates as:
     doc.type equals 'article' and doc.writer equals the user's couchdb id
     and the only other modified fields are doc.text and doc.date OR
     this database's name is 'mydb' and doc.type equals 'userdata' and
-    doc.password is NOT modified OR  doc.type equals 'notes'
+    doc.password is NOT modified OR  doc.type equals 'notes' and the
+    database has the role 'someRole' added to secObj.members.roles
+	
+Write permissions have to be granted twice, once in some kind of write
+role and the second time in the allow roles. Technically you could
+have all the write permissions possible described using allow roles,
+however the write roles make it possible to make a database unwritable
+by simply removing it from the database. Same goes for any user, take
+their write roles away to stop them from writing to any database. You
+can leave the (possibly complex) allow roles in place.
+
+The parser is a bit simple, and hacked together using a little state
+machine. You could write a much more capable parser that allows for
+intricate and complex document writing validation, however this suited
+my needs so I left it simple.
 
 User and database rules get parsed the first time and then 'compiled'
-to validation functions. These functions get cached and do not have
-to be recompiled for the next write unless a different user tries to
-write to the database, or the database rules in secObj.members.names
-get changed. The latter situation will be rare. The first one might
-not be a rare event, and if there are performance problems it is
-possible to cache a number of users, or possibly all of them (not
-implemented yet).
+to validation functions. These functions get cached and do not have to
+be recompiled for the next write unless a different user tries to
+write to the database, or the database rules and/or roles in
+secObj.members get changed. The latter situation will be rare. The
+first one might not be a rare event, and if there are performance
+problems it is possible to cache a number of users, or possibly all of
+them (not implemented yet).
 
-See tests.js for examples on how to use the validator.
+See tests.js for examples on how to use the validator and execute
 
 	node tests.js
 	
-to run them.
+to run the tests.	

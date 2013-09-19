@@ -19,7 +19,7 @@ function (newDoc, oldDoc, userCtx, secObj){
     var validator = require('lib/validator');
     
     try {
-        validator = validator.init(secObj.members.names, userCtx);
+        validator = validator.init(secObj.members, userCtx);
     }  catch(e) {
         log('error initing validator', e);
         if (e.message) reportError('forbidden', 'Error initializing validator: \n' + e.message);
@@ -57,15 +57,18 @@ function (newDoc, oldDoc, userCtx, secObj){
         reportError('unauthorized', 'User ' + userCtx.name  +
                     ' is not allowed to write to this database.');
     
+    
     if (newDoc._deleted) {
         if  (!validator.validateUser(oldDoc, {}) )
-            reportError('unauthorized', 'User ' + name + ' is not allowed to delete this particular document from the database.');
+            reportError('unauthorized', 'User ' + name + ' is not allowed to delete this particular document from this database.');
     }
     else {
         if  (!validator.validateUser(newDoc, oldDoc) )
-            reportError('unauthorized', 'User ' + name + ' is not allowed to write this particular document to the database.');
+            reportError('unauthorized', 'User ' + name +
+                        ' is not allowed to write to this database or not allowed to write this particular document or both.');
         if (!validator.validateDoc(newDoc))
             reportError('forbidden', 'This document does not pass the the validation rules for this database and and has not been saved.');
     }
+    
 }
 
