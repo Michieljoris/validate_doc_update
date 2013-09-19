@@ -28,7 +28,7 @@ decision on.
 First of all a document has to be validated to be appropiate for the
 database:
 
-You can store under members/names strings describing what kind of docs are allowed in the
+You can store under members.names strings describing what kind of docs are allowed in the
 database. For instance:
 
 
@@ -57,6 +57,9 @@ number), or require a field to be defined, undefined, or illegal.
 The 'names' have to start with an underscore to distinguish them from
 real names you might want to add to the secObj.members.names. Couchdb
 names cannot start with an underscore, so there will be no conflict.
+
+A single underscore ('_') added as to secObj.members.names will
+validate any document to be written.
 
 A user needs write permission. This can be done by adding "write*"
 roles to the database's secObj.members.roles array. The star in
@@ -90,13 +93,22 @@ This translates as:
     doc.password is NOT modified OR  doc.type equals 'notes' and the
     database has the role 'someRole' added to secObj.members.roles
 	
+Use the role 'allow_*_' to allow any document to be written to any
+database (assuming the user has write permission).
+
+To unlock a database completely for a particular user:
+
+    secObj.members.names: [ "_" ]
+	secObj.members.roles: [ "write" ]
+    userCtx.roles: [ "write", "allow_*_" ]
+	
 Write permissions have to be granted twice, once in some kind of write
 role and the second time in the allow roles. Technically you could
 have all the write permissions possible described using allow roles,
 however the write roles make it possible to make a database unwritable
-by simply removing it from the database. Same goes for any user, take
+by simply removing them from the database. Same goes for any user, take
 their write roles away to stop them from writing to any database. You
-can leave the (possibly complex) allow roles in place.
+can then leave the (possibly complex) allow roles in place.
 
 The parser is a bit simple, and hacked together using a little state
 machine. You could write a much more capable parser that allows for
