@@ -254,6 +254,9 @@ function getUserTest(r) {
 }
 
 function compileUserCtx(userCtx, dbRoles) {
+    cachedUserCtx =userCtx;
+    cachedRoles = dbRoles;
+    
     userCtx = userCtx || {};
     dbRoles = dbRoles || [];
     var user = userCtx.name;
@@ -265,8 +268,6 @@ function compileUserCtx(userCtx, dbRoles) {
         return parsed;
     });
     
-    cachedUserCtx =userCtx;
-    cachedRoles = dbRoles;
     validateUser = function(newDoc, oldDoc) {
         
         if (!oldDoc) oldDoc = {};
@@ -280,24 +281,18 @@ function compileUserCtx(userCtx, dbRoles) {
 
 function init(dbSecObjMembers, userCtx) {
     var dbRules = dbSecObjMembers.names, dbRoles = dbSecObjMembers.roles;
-    var rulesAreCached = equals(dbRules, cachedRules),
-        userCtxIsCached = equals(userCtx, cachedUserCtx),
-        dbRolesAreCached = equals(dbRoles, cachedRoles);
+    var rulesAreSame = equals(dbRules, cachedRules),
+        userCtxIsSame = equals(userCtx, cachedUserCtx),
+        dbRolesAreSame = equals(dbRoles, cachedRoles);
     
     return {
-        cached: (rulesAreCached ? 'dbRules,' : '') +
-            (userCtxIsCached ? 'userCtx,' : '') +
-            (dbRolesAreCached ? 'dbRoles' : ''),
-        validateDoc: cachedRules && rulesAreCached  ? validateDoc : compileRules(dbRules),
-        validateUser: userCtx && userCtxIsCached && dbRolesAreCached ?
+        cached: (rulesAreSame ? 'dbRules,' : '') +
+            (userCtxIsSame ? 'userCtx,' : '') +
+            (dbRolesAreSame ? 'dbRoles' : ''),
+        validateDoc: rulesAreSame  ? validateDoc : compileRules(dbRules),
+        validateUser: userCtxIsSame && dbRolesAreSame ?
             validateUser : compileUserCtx(userCtx, dbRoles)
     };
 }
 
 exports['init'] = init;
-
-
-
-
-
-
