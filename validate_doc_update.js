@@ -16,6 +16,10 @@ function (newDoc, oldDoc, userCtx, secObj){
         throw(errorObj);
     }
     
+    if (newDoc._deleted === true && !oldDoc) {
+        reportError('forbidden', 'Do not create deleted docs');
+    }
+    
     var validator = require('lib/validator');
     
     try {
